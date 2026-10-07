@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoneyPulse MM - Myanmar Daily Expense Tracker</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#16a34a',
+                            600: '#15803d',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        kyat: {
+                            gold: '#D4AF37',
+                            ruby: '#E0115F',
+                            jade: '#00A86B'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Padauk', 'Pyidaungsu', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Padauk:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Inter', 'Padauk', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #334155;
+        }
+
+        /* Glassmorphism background */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+        }
+        .dark .glass-card {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 min-h-screen flex flex-col pb-12 transition-colors duration-200">
+
+    <!-- Navigation / Header Bar -->
+    <header class="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
+                    <i data-lucide="wallet" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 bg-clip-text text-transparent leading-tight">
+                        MoneyPulse MM
+                    </h1>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">ကျပ် ပိုက်ဆံစာရင်း ထိန်းချုပ်စနစ်</p>
+                </div>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <!-- Currency Format Selector -->
+                <select id="currencySymbolSelect" onchange="updateCurrencySymbol(this.value)" class="text-xs bg-slate-100 dark:bg-slate-800 border-0 rounded-lg px-2.5 py-1.5 font-semibold focus:ring-2 focus:ring-emerald-500 dark:text-slate-200 cursor-pointer">
+                    <option value="Ks">Ks (10,000 Ks)</option>
+                    <option value="MMK">MMK (10,000 MMK)</option>
+                    <option value="ကျပ်">ကျပ် (၁၀,၀၀၀ ကျပ်)</option>
+                </select>
+
+                <!-- Data Backup Modal Trigger -->
+                <button onclick="openModal('backupModal')" title="Data Backup & Restore" class="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                    <i data-lucide="database" class="w-5 h-5"></i>
+                </button>
+
+                <!-- Settings Modal Trigger -->
+                <button onclick="openModal('settingsModal')" title="Budget Settings" class="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                    <i data-lucide="sliders" class="w-5 h-5"></i>
+                </button>
+
+                <!-- Theme Toggle -->
+                <button id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Dark/Light Mode" class="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                    <i data-lucide="sun" class="w-5 h-5 hidden dark:block"></i>
+                    <i data-lucide="moon" class="w-5 h-5 block dark:hidden"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex-grow w-full">
+        
+        <!-- Key Metrics Cards Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <!-- Today's Spending Card -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Today's Expense (ယနေ့)</span>
+                    <span id="todayStatusBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                        Under Budget
+                    </span>
+                </div>
+                <div class="flex items-baseline space-x-1">
+                    <h2 id="todayExpenseVal" class="text-2xl font-bold text-slate-900 dark:text-white">0 Ks</h2>
+                </div>
+                <!-- Progress bar for Daily Limit -->
+                <div class="mt-3">
+                    <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                        <span>Daily Limit: <span id="dailyLimitVal">20,000 Ks</span></span>
+                        <span id="dailyLimitPercent">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                        <div id="dailyProgressBar" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Month Balance Card -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Net Balance (လက်ကျန်)</span>
+                    <div class="p-1.5 rounded-lg bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+                        <i data-lucide="scale" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="flex items-baseline">
+                    <h2 id="monthlyBalanceVal" class="text-2xl font-bold text-slate-900 dark:text-white">0 Ks</h2>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-3">This month's total net savings</p>
+            </div>
+
+            <!-- Total Monthly Income -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Month Income (ဝင်ငွေ)</span>
+                    <div class="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+                        <i data-lucide="arrow-down-left" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="flex items-baseline">
+                    <h2 id="monthlyIncomeVal" class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">0 Ks</h2>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-3">Total earnings received this month</p>
+            </div>
+
+            <!-- Total Monthly Expense -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Month Expense (ထွက်ငွေ)</span>
+                    <div class="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400">
+                        <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="flex items-baseline">
+                    <h2 id="monthlyExpenseVal" class="text-2xl font-bold text-rose-600 dark:text-rose-400">0 Ks</h2>
+                </div>
+                <div class="mt-3">
+                    <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                        <span>Target: <span id="monthlyLimitVal">500,000 Ks</span></span>
+                        <span id="monthlyLimitPercent">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                        <div id="monthlyProgressBar" class="bg-rose-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Layout: Add Entry Form & Visual Analytics -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+            
+            <!-- Quick Add Form Card (5 Cols) -->
+            <div class="lg:col-span-5 bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/60 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <i data-lucide="plus-circle" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
+                        New Transaction (စာရင်းသစ်သွင်း)
+                    </h2>
+                    <!-- Income / Expense Segmented Control -->
+                    <div class="bg-slate-100 dark:bg-slate-700 p-1 rounded-xl flex">
+                        <button id="typeExpenseBtn" onclick="setTransactionType('expense')" class="px-3 py-1 text-xs font-semibold rounded-lg transition-all bg-white dark:bg-slate-800 text-rose-600 shadow-sm">
+                            Expense
+                        </button>
+                        <button id="typeIncomeBtn" onclick="setTransactionType('income')" class="px-3 py-1 text-xs font-semibold rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-800">
+                            Income
+                        </button>
+                    </div>
+                </div>
+
+                <form id="addTransactionForm" onsubmit="handleAddTransaction(event)" class="space-y-4">
+                    <input type="hidden" id="transType" value="expense">
+
+                    <!-- Amount Input -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                            Amount (<span class="currencyLabel">Ks</span>) *
+                        </label>
+                        <div class="relative">
+                            <input type="number" id="transAmount" step="any" min="1" placeholder="e.g. 5000" required class="w-full pl-3 pr-12 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                            <span class="absolute right-3 top-3 text-xs font-semibold text-slate-400 currencyLabel">Ks</span>
+                        </div>
+                    </div>
+
+                    <!-- Myanmar Quick Preset Chips -->
+                    <div>
+                        <span class="block text-[11px] font-medium text-slate-400 mb-1.5">Myanmar Quick Presets (အမြန်ရွေးရန်)</span>
+                        <div class="flex flex-wrap gap-1.5">
+                            <button type="button" onclick="addPresetAmount(1000)" class="px-2.5 py-1 text-xs font-medium bg-slate-100 dark:bg-slate-700/60 hover:bg-emerald-100 hover:text-emerald-700 dark:hover:bg-emerald-900/40 rounded-lg transition-colors">+1,000</button>
+                            <button type="button" onclick="addPresetAmount(3000)" class="px-2.5 py-1 text-xs font-medium bg-slate-100 dark:bg-slate-700/60 hover:bg-emerald-100 hover:text-emerald-700 dark:hover:bg-emerald-900/40 rounded-lg transition-colors">+3,000</button>
+                            <button type="button" onclick="addPresetAmount(5000)" class="px-2.5 py-1 text-xs font-medium bg-slate-100 dark:bg-slate-700/60 hover:bg-emerald-100 hover:text-emerald-700 dark:hover:bg-emerald-900/40 rounded-lg transition-colors">+5,000</button>
+                            <button type="button" onclick="addPresetAmount(10000)" class="px-2.5 py-1 text-xs font-medium bg-slate-100 dark:bg-slate-700/60 hover:bg-emerald-100 hover:text-emerald-700 dark:hover:bg-emerald-900/40 rounded-lg transition-colors">+10,000</button>
+                            <button type="button" onclick="addPresetAmount(20000)" class="px-2.5 py-1 text-xs font-medium bg-slate-100 dark:bg-slate-700/60 hover:bg-emerald-100 hover:text-emerald-700 dark:hover:bg-emerald-900/40 rounded-lg transition-colors">+20,000</button>
+                            <button type="button" onclick="addPresetAmount(50000)" class="px-2.5 py-1 text-xs font-medium bg-slate-100 dark:bg-slate-700/60 hover:bg-emerald-100 hover:text-emerald-700 dark:hover:bg-emerald-900/40 rounded-lg transition-colors">+50,000</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <!-- Category Selection -->
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Category (အမျိုးအစား)</label>
+                            <select id="transCategory" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:text-slate-200">
+                                <option value="food">🍵 Food & Tea (အစာ/လက်ဖက်ရည်)</option>
+                                <option value="transport">🚗 Transport & Fuel (လမ်းစရိတ်/ဆီ)</option>
+                                <option value="mobile">📱 Phone & Internet (ဖုန်း/အင်တာနက်)</option>
+                                <option value="utilities">⚡ Utilities & Bills (လျှပ်စစ်/ရေဖိုး)</option>
+                                <option value="grocery">🛒 Grocery (ကုန်စုံ/ဈေးဝယ်)</option>
+                                <option value="entertainment">🎬 Entertainment (ဖျော်ဖြေရေး)</option>
+                                <option value="health">💊 Health & Medical (ကျန်းမာရေး)</option>
+                                <option value="salary">💰 Salary / Income (လစာ/ဝင်ငွေ)</option>
+                                <option value="other">📦 Miscellaneous (အထွေထွေ)</option>
+                            </select>
+                        </div>
+
+                        <!-- Payment Method -->
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Payment (ငွေပေးချေမှု)</label>
+                            <select id="transPayment" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:text-slate-200">
+                                <option value="Cash">💵 Cash (ငွေသား)</option>
+                                <option value="KBZPay">📲 KBZPay (KPay)</option>
+                                <option value="WavePay">🌊 WavePay</option>
+                                <option value="AYAPay">🅰️ AYA Pay</option>
+                                <option value="CBPay">🏦 CB Pay</option>
+                                <option value="Bank">💳 Bank Transfer</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <!-- Date Input -->
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Date</label>
+                            <input type="date" id="transDate" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:text-slate-200">
+                        </div>
+
+                        <!-- Time Input -->
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Time</label>
+                            <input type="time" id="transTime" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:text-slate-200">
+                        </div>
+                    </div>
+
+                    <!-- Note / Description -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Note (မှတ်ချက်)</label>
+                        <input type="text" id="transNote" placeholder="e.g. Morning Shan Noodles & Black Tea" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:text-slate-200">
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" id="submitTransBtn" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold rounded-xl text-sm shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="check" class="w-4 h-4"></i>
+                        <span>Save Record (သိမ်းဆည်းမည်)</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Interactive Analytics Section (7 Cols) -->
+            <div class="lg:col-span-7 space-y-6">
+                <!-- Tabs for Analytics -->
+                <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/60 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="pie-chart" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
+                            Spending Analytics (သုံးစွဲမှု ဆန်းစစ်ချက်)
+                        </h2>
+                        <div class="flex space-x-1 bg-slate-100 dark:bg-slate-700 p-1 rounded-xl text-xs">
+                            <button onclick="switchChartTab('category')" id="tabCategoryBtn" class="px-3 py-1 font-semibold rounded-lg bg-white dark:bg-slate-800 text-emerald-600 shadow-sm">
+                                By Category
+                            </button>
+                            <button onclick="switchChartTab('trend')" id="tabTrendBtn" class="px-3 py-1 font-semibold rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400">
+                                Daily Trend
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Category Doughnut Container -->
+                    <div id="categoryChartContainer" class="relative h-64 w-full flex items-center justify-center">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+
+                    <!-- Daily Trend Bar Container -->
+                    <div id="trendChartContainer" class="relative h-64 w-full hidden">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transaction History & Filter Section -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/60 shadow-sm mb-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100 dark:border-slate-700/60">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <i data-lucide="history" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
+                        Transaction History (ငွေစာရင်း မှတ်တမ်းများ)
+                    </h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">View and manage all income and expense logs</p>
+                </div>
+
+                <!-- Export Options -->
+                <div class="flex items-center space-x-2">
+                    <button onclick="exportCSV()" class="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-600"></i>
+                        Export CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filters Bar -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                <!-- Date Filter -->
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase">Date Range</label>
+                    <select id="filterDateRange" onchange="handleFilterChange()" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:text-slate-200">
+                        <option value="month">This Month (ဒီလ)</option>
+                        <option value="today">Today (ယနေ့)</option>
+                        <option value="week">This Week (ဒီအပတ်)</option>
+                        <option value="all">All Time (အားလုံး)</option>
+                    </select>
+                </div>
+
+                <!-- Category Filter -->
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase">Category</label>
+                    <select id="filterCategory" onchange="handleFilterChange()" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:text-slate-200">
+                        <option value="all">All Categories</option>
+                        <option value="food">🍵 Food & Tea</option>
+                        <option value="transport">🚗 Transport</option>
+                        <option value="mobile">📱 Phone & Internet</option>
+                        <option value="utilities">⚡ Utilities</option>
+                        <option value="grocery">🛒 Grocery</option>
+                        <option value="entertainment">🎬 Entertainment</option>
+                        <option value="health">💊 Health</option>
+                        <option value="salary">💰 Salary</option>
+                        <option value="other">📦 Other</option>
+                    </select>
+                </div>
+
+                <!-- Payment Method Filter -->
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase">Payment</label>
+                    <select id="filterPayment" onchange="handleFilterChange()" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:text-slate-200">
+                        <option value="all">All Payments</option>
+                        <option value="Cash">Cash (ငွေသား)</option>
+                        <option value="KBZPay">KBZPay</option>
+                        <option value="WavePay">WavePay</option>
+                        <option value="AYAPay">AYA Pay</option>
+                        <option value="CBPay">CB Pay</option>
+                        <option value="Bank">Bank Transfer</option>
+                    </select>
+                </div>
+
+                <!-- Search Input -->
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase">Search Notes</label>
+                    <div class="relative">
+                        <input type="text" id="filterSearch" oninput="handleFilterChange()" placeholder="Search description..." class="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:text-slate-200">
+                        <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transaction Table / List -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-700/60">
+                            <th class="py-2.5 px-3 font-semibold">Date & Time</th>
+                            <th class="py-2.5 px-3 font-semibold">Category</th>
+                            <th class="py-2.5 px-3 font-semibold">Note</th>
+                            <th class="py-2.5 px-3 font-semibold">Payment</th>
+                            <th class="py-2.5 px-3 font-semibold text-right">Amount</th>
+                            <th class="py-2.5 px-3 font-semibold text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionList" class="divide-y divide-slate-100 dark:divide-slate-700/50 text-xs">
+                        <!-- Dynamic Transaction Rows go here -->
+                    </tbody>
+                </table>
+
+                <!-- Empty State -->
+                <div id="emptyState" class="hidden py-12 text-center">
+                    <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-700/50 flex items-center justify-center mx-auto mb-3 text-slate-400">
+                        <i data-lucide="inbox" class="w-6 h-6"></i>
+                    </div>
+                    <p class="text-sm font-medium text-slate-600 dark:text-slate-300">No transactions found</p>
+                    <p class="text-xs text-slate-400 mt-1">Try adjusting your search or filters, or add a new record above.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Budget Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 dark:border-slate-700">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="sliders" class="w-5 h-5 text-emerald-600"></i>
+                    Budget Limits (သုံးစွဲမှုပမာဏ ကန့်သတ်ချက်)
+                </h3>
+                <button onclick="closeModal('settingsModal')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                        Daily Expense Limit (<span class="currencyLabel">Ks</span>)
+                    </label>
+                    <input type="number" id="settingDailyLimit" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:text-slate-100">
+                    <p class="text-[11px] text-slate-400 mt-1">Generates alert badges when today's spending exceeds 80% or 100%.</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                        Monthly Expense Limit (<span class="currencyLabel">Ks</span>)
+                    </label>
+                    <input type="number" id="settingMonthlyLimit" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:text-slate-100">
+                </div>
+
+                <div class="pt-3 flex space-x-3">
+                    <button onclick="saveSettings()" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition-colors">
+                        Save Preferences
+                    </button>
+                    <button onclick="closeModal('settingsModal')" class="px-4 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Backup & Persistence Modal (Ideal for GitHub Pages) -->
+    <div id="backupModal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 dark:border-slate-700">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="database" class="w-5 h-5 text-emerald-600"></i>
+                    Data Backup & Sync (ဒေတာ သိမ်းဆည်းရန်)
+                </h3>
+                <button onclick="closeModal('backupModal')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+                When hosted on GitHub Pages, data is saved locally inside your browser. Export JSON backups regularly to keep your financial records safe or transfer them to another phone or computer!
+            </p>
+
+            <div class="space-y-3">
+                <!-- Export JSON -->
+                <button onclick="exportJSON()" class="w-full py-2.5 px-4 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-semibold text-xs rounded-xl flex items-center justify-between transition-colors">
+                    <span class="flex items-center gap-2">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        Download JSON Backup
+                    </span>
+                    <span class="text-[10px] bg-emerald-200 dark:bg-emerald-800 px-2 py-0.5 rounded-full font-bold">.JSON</span>
+                </button>
+
+                <!-- Import JSON -->
+                <label class="w-full py-2.5 px-4 bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold text-xs rounded-xl flex items-center justify-between cursor-pointer transition-colors">
+                    <span class="flex items-center gap-2">
+                        <i data-lucide="upload" class="w-4 h-4"></i>
+                        Restore Data from JSON
+                    </span>
+                    <input type="file" id="jsonInput" accept=".json" onchange="importJSON(event)" class="hidden">
+                    <span class="text-[10px] bg-slate-200 dark:bg-slate-600 px-2 py-0.5 rounded-full font-bold">Upload</span>
+                </label>
+
+                <hr class="border-slate-100 dark:border-slate-700 my-2">
+
+                <!-- Reset All Data -->
+                <button onclick="confirmClearData()" class="w-full py-2.5 px-4 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 text-rose-600 dark:text-rose-400 font-semibold text-xs rounded-xl flex items-center justify-center gap-2 transition-colors">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    Reset All Records (ဒေတာအားလုံးဖျက်မည်)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Overlay Modal (Replaces window.confirm) -->
+    <div id="confirmModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center">
+            <div class="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 flex items-center justify-center mx-auto mb-3">
+                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+            </div>
+            <h4 id="confirmModalTitle" class="text-base font-bold text-slate-900 dark:text-white mb-1">Are you sure?</h4>
+            <p id="confirmModalMessage" class="text-xs text-slate-500 dark:text-slate-400 mb-5">This action cannot be undone.</p>
+            <div class="flex space-x-3">
+                <button id="confirmActionBtn" class="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl">
+                    Confirm Delete
+                </button>
+                <button onclick="closeModal('confirmModal')" class="flex-1 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <script>
+        const STORAGE_KEY = 'moneypulse_mm_data';
+        const SETTINGS_KEY = 'moneypulse_mm_settings';
+
+        // Localized Categories Metadata
+        const CATEGORIES = {
+            food: { name: 'Food & Tea (အစာ/လက်ဖက်ရည်)', icon: 'coffee', color: '#10B981' },
+            transport: { name: 'Transport & Fuel (လမ်းစရိတ်/ဆီ)', icon: 'car', color: '#3B82F6' },
+            mobile: { name: 'Phone & Data (ဖုန်း/အင်တာနက်)', icon: 'smartphone', color: '#8B5CF6' },
+            utilities: { name: 'Utilities (လျှပ်စစ်/ရေဖိုး)', icon: 'zap', color: '#F59E0B' },
+            grocery: { name: 'Grocery (ကုန်စုံ/ဈေးဝယ်)', icon: 'shopping-bag', color: '#EC4899' },
+            entertainment: { name: 'Entertainment (ဖျော်ဖြေရေး)', icon: 'film', color: '#6366F1' },
+            health: { name: 'Health (ကျန်းမာရေး)', icon: 'heart-pulse', color: '#EF4444' },
+            salary: { name: 'Salary / Income (လစာ/ဝင်ငွေ)', icon: 'wallet', color: '#10B981' },
+            other: { name: 'Miscellaneous (အထွေထွေ)', icon: 'more-horizontal', color: '#64748B' }
+        };
+
+        // App State
+        let state = {
+            transactions: [],
+            settings: {
+                currencySymbol: 'Ks',
+                dailyLimit: 20000,
+                monthlyLimit: 500000
+            },
+            filters: {
+                dateRange: 'month',
+                category: 'all',
+                payment: 'all',
+                search: ''
+            },
+            activeChartTab: 'category'
+        };
+
+        let categoryChartInstance = null;
+        let trendChartInstance = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadState();
+            setupDefaultDateTime();
+            initTheme();
+            renderAll();
+            lucide.createIcons();
+        });
+
+        // Set date & time inputs to current moment
+        function setupDefaultDateTime() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+
+            document.getElementById('transDate').value = `${year}-${month}-${day}`;
+            document.getElementById('transTime').value = `${hours}:${minutes}`;
+        }
+
+        // Local Storage Sync
+        function loadState() {
+            const savedData = localStorage.getItem(STORAGE_KEY);
+            if (savedData) {
+                try {
+                    state.transactions = JSON.parse(savedData);
+                } catch (e) {
+                    state.transactions = [];
+                }
+            } else {
+                // Populate initial sample data if fresh installation
+                state.transactions = getSampleData();
+                saveState();
+            }
+
+            const savedSettings = localStorage.getItem(SETTINGS_KEY);
+            if (savedSettings) {
+                try {
+                    state.settings = { ...state.settings, ...JSON.parse(savedSettings) };
+                } catch (e) {}
+            }
+
+            // Sync UI settings
+            document.getElementById('currencySymbolSelect').value = state.settings.currencySymbol;
+            document.getElementById('settingDailyLimit').value = state.settings.dailyLimit;
+            document.getElementById('settingMonthlyLimit').value = state.settings.monthlyLimit;
+            updateCurrencyLabels();
+        }
+
+        function saveState() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state.transactions));
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
+        }
+
+        function formatMoney(amount) {
+            const num = Number(amount) || 0;
+            const formatted = num.toLocaleString('en-US');
+            const sym = state.settings.currencySymbol;
+            
+            if (sym === 'ကျပ်') {
+                return `${formatted} ကျပ်`;
+            }
+            return `${formatted} ${sym}`;
+        }
+
+        function updateCurrencySymbol(val) {
+            state.settings.currencySymbol = val;
+            saveState();
+            updateCurrencyLabels();
+            renderAll();
+            showToast(`Currency format updated to ${val}`, 'info');
+        }
+
+        function updateCurrencyLabels() {
+            document.querySelectorAll('.currencyLabel').forEach(el => {
+                el.textContent = state.settings.currencySymbol;
+            });
+        }
+
+        function initTheme() {
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        }
+
+        function toggleTheme() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.theme = 'light';
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.theme = 'dark';
+            }
+            renderCharts(); // Re-render charts for dark mode contrast
+        }
+
+        function setTransactionType(type) {
+            document.getElementById('transType').value = type;
+            const expBtn = document.getElementById('typeExpenseBtn');
+            const incBtn = document.getElementById('typeIncomeBtn');
+
+            if (type === 'expense') {
+                expBtn.className = "px-3 py-1 text-xs font-semibold rounded-lg transition-all bg-white dark:bg-slate-800 text-rose-600 shadow-sm";
+                incBtn.className = "px-3 py-1 text-xs font-semibold rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-800";
+            } else {
+                incBtn.className = "px-3 py-1 text-xs font-semibold rounded-lg transition-all bg-white dark:bg-slate-800 text-emerald-600 shadow-sm";
+                expBtn.className = "px-3 py-1 text-xs font-semibold rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-800";
+            }
+        }
+
+        function addPresetAmount(val) {
+            const amountInput = document.getElementById('transAmount');
+            const currentVal = Number(amountInput.value) || 0;
+            amountInput.value = currentVal + val;
+        }
+
+        function handleAddTransaction(e) {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('transAmount').value);
+            const type = document.getElementById('transType').value;
+            const category = document.getElementById('transCategory').value;
+            const payment = document.getElementById('transPayment').value;
+            const date = document.getElementById('transDate').value;
+            const time = document.getElementById('transTime').value;
+            const note = document.getElementById('transNote').value.trim();
+
+            if (!amount || amount <= 0) {
+                showToast('Please enter a valid amount', 'error');
+                return;
+            }
+
+            const newTrans = {
+                id: Date.now().toString(),
+                amount,
+                type,
+                category,
+                payment,
+                date,
+                time,
+                note: note || (type === 'expense' ? 'Expense' : 'Income')
+            };
+
+            state.transactions.unshift(newTrans);
+            saveState();
+            renderAll();
+
+            // Reset form
+            document.getElementById('transAmount').value = '';
+            document.getElementById('transNote').value = '';
+            showToast('Transaction saved successfully! (မှတ်တမ်းသိမ်းပြီးပါပြီ)', 'success');
+        }
+
+        function deleteTransaction(id) {
+            openConfirmModal('Delete Transaction', 'Are you sure you want to delete this record?', () => {
+                state.transactions = state.transactions.filter(t => t.id !== id);
+                saveState();
+                renderAll();
+                showToast('Transaction deleted', 'info');
+            });
+        }
+
+        function renderMetrics() {
+            const now = new Date();
+            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+            // Calculate Today's Expense
+            const todayExpense = state.transactions
+                .filter(t => t.type === 'expense' && t.date === todayStr)
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            // Calculate Monthly Income & Expense
+            let monthlyIncome = 0;
+            let monthlyExpense = 0;
+
+            state.transactions.forEach(t => {
+                if (t.date.startsWith(currentMonthStr)) {
+                    if (t.type === 'income') monthlyIncome += t.amount;
+                    if (t.type === 'expense') monthlyExpense += t.amount;
+                }
+            });
+
+            const monthlyBalance = monthlyIncome - monthlyExpense;
+
+            // DOM Updates
+            document.getElementById('todayExpenseVal').textContent = formatMoney(todayExpense);
+            document.getElementById('monthlyBalanceVal').textContent = formatMoney(monthlyBalance);
+            document.getElementById('monthlyIncomeVal').textContent = formatMoney(monthlyIncome);
+            document.getElementById('monthlyExpenseVal').textContent = formatMoney(monthlyExpense);
+
+            // Budget Progress Calculations
+            const dailyLimit = state.settings.dailyLimit;
+            const monthlyLimit = state.settings.monthlyLimit;
+
+            document.getElementById('dailyLimitVal').textContent = formatMoney(dailyLimit);
+            document.getElementById('monthlyLimitVal').textContent = formatMoney(monthlyLimit);
+
+            const dailyPercent = Math.min(100, Math.round((todayExpense / dailyLimit) * 100));
+            const monthlyPercent = Math.min(100, Math.round((monthlyExpense / monthlyLimit) * 100));
+
+            // Daily Progress Bar & Badge
+            const dailyBar = document.getElementById('dailyProgressBar');
+            const dailyBadge = document.getElementById('todayStatusBadge');
+            dailyBar.style.width = `${dailyPercent}%`;
+            document.getElementById('dailyLimitPercent').textContent = `${dailyPercent}%`;
+
+            if (dailyPercent >= 100) {
+                dailyBar.className = "bg-rose-500 h-full rounded-full transition-all duration-500";
+                dailyBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300";
+                dailyBadge.textContent = "Over Budget!";
+            } else if (dailyPercent >= 80) {
+                dailyBar.className = "bg-amber-500 h-full rounded-full transition-all duration-500";
+                dailyBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300";
+                dailyBadge.textContent = "Near Limit";
+            } else {
+                dailyBar.className = "bg-emerald-500 h-full rounded-full transition-all duration-500";
+                dailyBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300";
+                dailyBadge.textContent = "Under Budget";
+            }
+
+            // Monthly Progress
+            const monthlyBar = document.getElementById('monthlyProgressBar');
+            monthlyBar.style.width = `${monthlyPercent}%`;
+            document.getElementById('monthlyLimitPercent').textContent = `${monthlyPercent}%`;
+        }
+
+        function handleFilterChange() {
+            state.filters.dateRange = document.getElementById('filterDateRange').value;
+            state.filters.category = document.getElementById('filterCategory').value;
+            state.filters.payment = document.getElementById('filterPayment').value;
+            state.filters.search = document.getElementById('filterSearch').value.toLowerCase();
+            renderTransactions();
+        }
+
+        function getFilteredTransactions() {
+            const now = new Date();
+            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+            return state.transactions.filter(t => {
+                // Date Range Filter
+                if (state.filters.dateRange === 'today' && t.date !== todayStr) return false;
+                if (state.filters.dateRange === 'month' && !t.date.startsWith(currentMonthStr)) return false;
+                if (state.filters.dateRange === 'week') {
+                    const tDate = new Date(t.date);
+                    const diffTime = Math.abs(now - tDate);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    if (diffDays > 7) return false;
+                }
+
+                // Category Filter
+                if (state.filters.category !== 'all' && t.category !== state.filters.category) return false;
+
+                // Payment Filter
+                if (state.filters.payment !== 'all' && t.payment !== state.filters.payment) return false;
+
+                // Search Filter
+                if (state.filters.search) {
+                    const matchNote = t.note.toLowerCase().includes(state.filters.search);
+                    const matchCat = (CATEGORIES[t.category]?.name || '').toLowerCase().includes(state.filters.search);
+                    if (!matchNote && !matchCat) return false;
+                }
+
+                return true;
+            });
+        }
+
+        function renderTransactions() {
+            const listEl = document.getElementById('transactionList');
+            const emptyEl = document.getElementById('emptyState');
+            const items = getFilteredTransactions();
+
+            listEl.innerHTML = '';
+
+            if (items.length === 0) {
+                emptyEl.classList.remove('hidden');
+                return;
+            } else {
+                emptyEl.classList.add('hidden');
+            }
+
+            items.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors";
+
+                const isIncome = t.type === 'income';
+                const catMeta = CATEGORIES[t.category] || CATEGORIES.other;
+
+                tr.innerHTML = `
+                    <td class="py-3 px-3 whitespace-nowrap">
+                        <div class="font-semibold text-slate-800 dark:text-slate-200">${t.date}</div>
+                        <div class="text-[10px] text-slate-400">${t.time || ''}</div>
+                    </td>
+                    <td class="py-3 px-3 whitespace-nowrap">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium" style="background-color: ${catMeta.color}15; color: ${catMeta.color}">
+                            <i data-lucide="${catMeta.icon}" class="w-3.5 h-3.5"></i>
+                            ${catMeta.name.split(' ')[0]}
+                        </span>
+                    </td>
+                    <td class="py-3 px-3 font-medium text-slate-700 dark:text-slate-300 max-w-xs truncate">
+                        ${escapeHtml(t.note)}
+                    </td>
+                    <td class="py-3 px-3 whitespace-nowrap">
+                        <span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded font-mono text-[10px]">
+                            ${t.payment}
+                        </span>
+                    </td>
+                    <td class="py-3 px-3 font-bold text-right whitespace-nowrap ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}">
+                        ${isIncome ? '+' : '-'}${formatMoney(t.amount)}
+                    </td>
+                    <td class="py-3 px-3 text-center whitespace-nowrap">
+                        <button onclick="deleteTransaction('${t.id}')" title="Delete record" class="p-1 text-slate-400 hover:text-rose-600 transition-colors">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </td>
+                `;
+
+                listEl.appendChild(tr);
+            });
+
+            lucide.createIcons();
+        }
+
+        function switchChartTab(tab) {
+            state.activeChartTab = tab;
+            const catBtn = document.getElementById('tabCategoryBtn');
+            const trendBtn = document.getElementById('tabTrendBtn');
+            const catContainer = document.getElementById('categoryChartContainer');
+            const trendContainer = document.getElementById('trendChartContainer');
+
+            if (tab === 'category') {
+                catBtn.className = "px-3 py-1 font-semibold rounded-lg bg-white dark:bg-slate-800 text-emerald-600 shadow-sm";
+                trendBtn.className = "px-3 py-1 font-semibold rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400";
+                catContainer.classList.remove('hidden');
+                trendContainer.classList.add('hidden');
+            } else {
+                trendBtn.className = "px-3 py-1 font-semibold rounded-lg bg-white dark:bg-slate-800 text-emerald-600 shadow-sm";
+                catBtn.className = "px-3 py-1 font-semibold rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400";
+                trendContainer.classList.remove('hidden');
+                catContainer.classList.add('hidden');
+            }
+            renderCharts();
+        }
+
+        function renderCharts() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const textColor = isDark ? '#94a3b8' : '#64748b';
+
+            // Filter expenses for chart calculations
+            const filtered = getFilteredTransactions().filter(t => t.type === 'expense');
+
+            // 1. Category Chart
+            const categoryTotals = {};
+            filtered.forEach(t => {
+                categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+            });
+
+            const labels = Object.keys(categoryTotals).map(k => CATEGORIES[k]?.name.split(' ')[0] || k);
+            const data = Object.values(categoryTotals);
+            const colors = Object.keys(categoryTotals).map(k => CATEGORIES[k]?.color || '#94a3b8');
+
+            const ctxCategory = document.getElementById('categoryChart').getContext('2d');
+            if (categoryChartInstance) categoryChartInstance.destroy();
+
+            categoryChartInstance = new Chart(ctxCategory, {
+                type: 'doughnut',
+                data: {
+                    labels: labels.length ? labels : ['No Expenses'],
+                    datasets: [{
+                        data: data.length ? data : [1],
+                        backgroundColor: colors.length ? colors : [isDark ? '#334155' : '#e2e8f0'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { color: textColor, font: { size: 11 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.label}: ${formatMoney(context.raw)}`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+
+            // 2. Daily Trend Chart
+            const dailyTotals = {};
+            filtered.forEach(t => {
+                dailyTotals[t.date] = (dailyTotals[t.date] || 0) + t.amount;
+            });
+
+            const sortedDates = Object.keys(dailyTotals).sort();
+            const trendData = sortedDates.map(d => dailyTotals[d]);
+
+            const ctxTrend = document.getElementById('trendChart').getContext('2d');
+            if (trendChartInstance) trendChartInstance.destroy();
+
+            trendChartInstance = new Chart(ctxTrend, {
+                type: 'bar',
+                data: {
+                    labels: sortedDates.map(d => d.slice(5)), // MM-DD
+                    datasets: [{
+                        label: 'Daily Expense',
+                        data: trendData,
+                        backgroundColor: '#10B981',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { color: textColor, font: { size: 10 } }, grid: { display: false } },
+                        y: { ticks: { color: textColor, font: { size: 10 } }, grid: { color: isDark ? '#334155' : '#f1f5f9' } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` Expense: ${formatMoney(context.raw)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderAll() {
+            renderMetrics();
+            renderTransactions();
+            renderCharts();
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function saveSettings() {
+            const daily = parseFloat(document.getElementById('settingDailyLimit').value) || 20000;
+            const monthly = parseFloat(document.getElementById('settingMonthlyLimit').value) || 500000;
+
+            state.settings.dailyLimit = daily;
+            state.settings.monthlyLimit = monthly;
+            saveState();
+            renderAll();
+            closeModal('settingsModal');
+            showToast('Settings saved successfully', 'success');
+        }
+
+        function openConfirmModal(title, msg, onConfirm) {
+            document.getElementById('confirmModalTitle').textContent = title;
+            document.getElementById('confirmModalMessage').textContent = msg;
+            
+            const btn = document.getElementById('confirmActionBtn');
+            btn.onclick = () => {
+                onConfirm();
+                closeModal('confirmModal');
+            };
+            openModal('confirmModal');
+        }
+
+        function confirmClearData() {
+            closeModal('backupModal');
+            openConfirmModal('Reset All Data', 'This will permanently wipe all stored transactions from this browser.', () => {
+                state.transactions = [];
+                saveState();
+                renderAll();
+                showToast('All transaction records wiped', 'info');
+            });
+        }
+
+        function exportJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.transactions, null, 2));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", `moneypulse_backup_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+            showToast('JSON Backup downloaded!', 'success');
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported)) {
+                        state.transactions = imported;
+                        saveState();
+                        renderAll();
+                        closeModal('backupModal');
+                        showToast('Data restored successfully!', 'success');
+                    } else {
+                        showToast('Invalid backup file format', 'error');
+                    }
+                } catch (err) {
+                    showToast('Failed to parse JSON file', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function exportCSV() {
+            if (!state.transactions.length) {
+                showToast('No data to export', 'error');
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,ID,Date,Time,Type,Category,Amount,Payment,Note\n";
+            state.transactions.forEach(t => {
+                const row = `"${t.id}","${t.date}","${t.time || ''}","${t.type}","${t.category}",${t.amount},"${t.payment}","${(t.note || '').replace(/"/g, '""')}"`;
+                csvContent += row + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', `moneypulse_export_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            showToast('CSV Exported!', 'success');
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+
+            let iconName = 'info';
+            let bgClass = 'bg-slate-800 text-white';
+
+            if (type === 'success') {
+                iconName = 'check-circle';
+                bgClass = 'bg-emerald-600 text-white';
+            } else if (type === 'error') {
+                iconName = 'alert-circle';
+                bgClass = 'bg-rose-600 text-white';
+            }
+
+            toast.className = `flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-xs font-semibold transform transition-all duration-300 translate-y-2 opacity-0 pointer-events-auto ${bgClass}`;
+            toast.innerHTML = `<i data-lucide="${iconName}" class="w-4 h-4"></i><span>${escapeHtml(message)}</span>`;
+
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Default sample records for demonstration
+        function getSampleData() {
+            const today = new Date().toISOString().slice(0,10);
+            return [
+                { id: '1', amount: 3500, type: 'expense', category: 'food', payment: 'Cash', date: today, time: '08:30', note: 'Shan Noodles & Black Tea' },
+                { id: '2', amount: 5000, type: 'expense', category: 'mobile', payment: 'KBZPay', date: today, time: '10:15', note: 'Atom Mobile Topup' },
+                { id: '3', amount: 12000, type: 'expense', category: 'transport', payment: 'Cash', date: today, time: '12:00', note: 'Taxi to downtown' },
+                { id: '4', amount: 450000, type: 'income', category: 'salary', payment: 'Bank', date: today, time: '09:00', note: 'Monthly Salary' }
+            ];
+        }
+    </script>
+</body>
+</html>
